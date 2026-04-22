@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Playoff Fantasy</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0a0c0f;--surface:#111418;--surface2:#181c22;--border:#1e2530;
+    --accent:#f5a623;--accent2:#e8453c;--text:#e8eaed;--muted:#6b7280;
+    --live:#22c55e;--gold:#f5a623;--silver:#9ca3af;--bronze:#b87333;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+  header{background:linear-gradient(135deg,#0a0c0f,#111c2e);border-bottom:1px solid var(--border);padding:0 2rem;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;height:64px}
+  .logo{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .header-right{display:flex;align-items:center;gap:1rem}
+  .live-badge{display:none;align-items:center;gap:6px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:600;color:var(--live);letter-spacing:1px}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--live);animation:pulse 1.5s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+  .btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.85rem;cursor:pointer;transition:all .2s}
+  .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .btn:disabled{opacity:.5;cursor:default;pointer-events:none}
+  .btn-accent{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
+  .btn-accent:hover{background:#e09620;color:#000;border-color:#e09620}
+  .btn-danger{border-color:var(--accent2);color:var(--accent2)}
+  .btn-danger:hover{background:rgba(232,69,60,.1)}
+
+  /* SETUP */
+  #setup-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 64px);padding:2rem}
+  .setup-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:3rem;max-width:520px;width:100%;text-align:center}
+  .setup-card h2{font-family:'Bebas Neue',sans-serif;font-size:2.5rem;letter-spacing:2px;margin-bottom:.5rem}
+  .setup-card>p{color:var(--muted);margin-bottom:2rem;line-height:1.6}
+  .input-group{margin-bottom:1.2rem;text-align:left}
+  .input-group label{display:block;font-size:.8rem;font-weight:600;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+  .input-group input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:.95rem;transition:border-color .2s}
+  .input-group input:focus{outline:none;border-color:var(--accent)}
+  .api-help{font-size:.8rem;color:var(--muted);margin-top:6px}
+  .api-help a{color:var(--accent);text-decoration:none}
+  .msg-box{border-radius:8px;padding:12px 16px;font-size:.85rem;margin-top:1rem;text-align:left;display:none}
+  .msg-error{background:rgba(232,69,60,.1);border:1px solid rgba(232,69,60,.3);color:#f87171}
+  .msg-ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:var(--live)}
+
+  /* MAIN */
+  #main-screen{display:none}
+  .container{max-width:1400px;margin:0 auto;padding:2rem}
+  .section-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;color:var(--muted);margin-bottom:1rem}
+
+  /* LEADERBOARD */
+  .leaderboard{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:2.5rem}
+  @media(max-width:1000px){.leaderboard{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:600px){.leaderboard{grid-template-columns:1fr 1fr}}
+  .team-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;position:relative;transition:border-color .2s,transform .2s;cursor:pointer}
+  .team-card:hover{border-color:#2e3a4e;transform:translateY(-2px)}
+  .team-card.rank-1{border-color:rgba(245,166,35,.4);background:linear-gradient(135deg,#111418,#1a1508)}
+  .team-card.rank-2{border-color:rgba(156,163,175,.3)}
+  .team-card.rank-3{border-color:rgba(184,115,51,.3)}
+  .rank-badge{position:absolute;top:1rem;right:1rem;font-family:'Bebas Neue',sans-serif;font-size:1.8rem;opacity:.15}
+  .rank-1 .rank-badge{color:var(--gold);opacity:.5}
+  .rank-2 .rank-badge{color:var(--silver);opacity:.4}
+  .rank-3 .rank-badge{color:var(--bronze);opacity:.4}
+  .team-owner{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+  .team-name{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:1px;margin-bottom:.8rem}
+  .team-pts{font-family:'DM Mono',monospace;font-size:2.2rem;font-weight:500;color:var(--accent);line-height:1}
+  .team-pts-label{font-size:.7rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+  .team-player-count{font-size:.8rem;color:var(--muted);margin-top:.6rem}
+
+  /* TABS */
+  .tabs{display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);flex-wrap:wrap}
+  .tab{background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:500;padding:.6rem 1.2rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .team-detail{display:none}
+  .team-detail.active{display:block}
+  .team-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap}
+  .team-header-left h2{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:2px}
+  .team-header-left p{color:var(--muted);font-size:.85rem}
+  .team-total{font-family:'DM Mono',monospace;font-size:3rem;color:var(--accent);font-weight:500;line-height:1}
+
+  /* TABLE */
+  .roster-table{width:100%;border-collapse:collapse}
+  .roster-table th{font-size:.72rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:.6rem 1rem;text-align:left;border-bottom:1px solid var(--border)}
+  .roster-table td{padding:.75rem 1rem;border-bottom:1px solid rgba(30,37,48,.6);font-size:.9rem;vertical-align:middle}
+  .roster-table tr:last-child td{border-bottom:none}
+  .roster-table tr:hover td{background:rgba(255,255,255,.02)}
+  .player-name-cell{font-weight:500}
+  .player-team-tag{font-size:.75rem;color:var(--muted)}
+  .pts-cell{font-family:'DM Mono',monospace;font-size:1rem;color:var(--accent);font-weight:500}
+  .sbadge{font-size:.7rem;padding:2px 8px;border-radius:20px;font-weight:600;letter-spacing:.5px;display:inline-block;white-space:nowrap}
+  .s-live{background:rgba(34,197,94,.15);color:var(--live);border:1px solid rgba(34,197,94,.3)}
+  .s-final{background:rgba(107,114,128,.15);color:var(--muted);border:1px solid rgba(107,114,128,.2)}
+  .s-upcoming{background:rgba(245,166,35,.1);color:var(--accent);border:1px solid rgba(245,166,35,.2)}
+  .s-loading{background:rgba(107,114,128,.1);color:var(--muted);border:1px solid rgba(107,114,128,.15)}
+  .s-dnp{background:rgba(232,69,60,.1);color:#f87171;border:1px solid rgba(232,69,60,.2)}
+  .del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:4px 8px;border-radius:4px;transition:all .15s}
+  .del-btn:hover{color:var(--accent2);background:rgba(232,69,60,.1)}
+
+  /* ADD PLAYER */
+  .add-player-row{display:flex;gap:.75rem;margin-top:1.2rem}
+  .search-wrap{position:relative;flex:1}
+  .search-wrap input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:.9rem;transition:border-color .2s}
+  .search-wrap input:focus{outline:none;border-color:var(--accent)}
+  .search-dd{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-radius:8px;max-height:240px;overflow-y:auto;z-index:50;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+  .search-dd.open{display:block}
+  .sitem{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.875rem}
+  .sitem:last-child{border-bottom:none}
+  .sitem:hover{background:rgba(245,166,35,.08)}
+  .sitem-name{font-weight:500}
+  .sitem-team{font-size:.75rem;color:var(--muted)}
+
+  /* REFRESH BAR */
+  .refresh-bar{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.75rem 1.25rem;margin-bottom:2rem;font-size:.85rem;flex-wrap:wrap;gap:.75rem}
+  .refresh-info{color:var(--muted)}
+  .refresh-info span{color:var(--text);font-weight:500}
+  .spinning{animation:spin 1s linear infinite;display:inline-block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* MODAL */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:200;padding:1rem}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:100%;max-width:440px;animation:mIn .2s ease}
+  @keyframes mIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .modal h3{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:2px;margin-bottom:1.5rem}
+  .modal-actions{display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.5rem;flex-wrap:wrap}
+
+  .empty-state{text-align:center;padding:3rem;color:var(--muted)}
+  .empty-state .big{font-size:3rem;margin-bottom:1rem}
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  .note-banner{background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.2);border-radius:8px;padding:.75rem 1.25rem;margin-bottom:1.5rem;font-size:.85rem;color:var(--muted)}
+  .note-banner strong{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo" id="hlogo">PLAYOFF FANTASY</div>
+  <div class="header-right">
+    <div class="live-badge" id="live-badge"><div class="live-dot"></div> LIVE</div>
+    <button class="btn" onclick="openModal('edit-league-modal')">⚙ Settings</button>
+  </div>
+</header>
+
+<!-- SETUP -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <h2>🏀 Setup</h2>
+    <p>Enter your free <strong style="color:var(--text)">balldontlie</strong> API key to connect live NBA playoff stats.<br>Get yours free at <a href="https://www.balldontlie.io" target="_blank">balldontlie.io</a> — takes 60 seconds.</p>
+    <div class="input-group"><label>API Key</label><input type="text" id="api-key-input" placeholder="Paste your API key here..." /><div class="api-help">Free tier · No credit card · <a href="https://www.balldontlie.io" target="_blank">Get key →</a></div></div>
+    <div class="input-group"><label>League Name</label><input type="text" id="league-name-input" value="Playoff Fantasy" /></div>
+    <button class="btn btn-accent" style="width:100%;margin-top:.5rem;padding:13px;font-size:1rem" onclick="initLeague()" id="setup-btn">Connect & Load My League →</button>
+    <div class="msg-box msg-error" id="setup-error"></div>
+    <div class="msg-box msg-ok" id="setup-ok"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main-screen">
+  <div class="container">
+    <div class="refresh-bar">
+      <div class="refresh-info">Last updated: <span id="last-updated">Never</span></div>
+      <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+        <span style="font-size:.8rem;color:var(--muted)" id="cd"></span>
+        <button class="btn" onclick="refreshAllStats()" id="refresh-btn">↻ Refresh Stats</button>
+        <button class="btn btn-accent" onclick="openAddTeam()">+ Add Team</button>
+      </div>
+    </div>
+    <div class="section-title">STANDINGS</div>
+    <div class="leaderboard" id="lb"></div>
+    <div class="section-title" style="margin-top:1rem">ROSTERS</div>
+    <div class="tabs" id="tabs"></div>
+    <div id="panels"></div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="add-team-modal"><div class="modal"><h3>Add Team</h3><div class="input-group"><label>Team Name</label><input type="text" id="nt-name" placeholder="e.g. Curry's Kids"/></div><div class="input-group"><label>Owner Name</label><input type="text" id="nt-owner" placeholder="e.g. Mike"/></div><div class="modal-actions"><button class="btn" onclick="closeModal('add-team-modal')">Cancel</button><button class="btn btn-accent" onclick="addTeam()">Add Team</button></div></div></div>
+<div class="modal-overlay" id="edit-league-modal"><div class="modal"><h3>League Settings</h3><div class="input-group"><label>League Name</label><input type="text" id="el-name"/></div><div class="input-group"><label>API Key</label><input type="text" id="el-key"/></div><div class="modal-actions"><button class="btn" onclick="closeModal('edit-league-modal')">Cancel</button><button class="btn btn-accent" onclick="saveLeague()">Save</button></div></div></div>
+<div class="modal-overlay" id="edit-team-modal"><div class="modal"><h3>Edit Team</h3><div class="input-group"><label>Team Name</label><input type="text" id="et-name"/></div><div class="input-group"><label>Owner Name</label><input type="text" id="et-owner"/></div><div class="modal-actions"><button class="btn btn-danger" onclick="deleteTeam()">Delete Team</button><button class="btn" onclick="closeModal('edit-team-modal')">Cancel</button><button class="btn btn-accent" onclick="saveTeam()">Save</button></div></div></div>
+
+<script>
+// ─── PLAYER DATABASE ──────────────────────────────────────────
+// Balldontlie player IDs and known playoff point totals (updated through April 21, 2026)
+// Games played: April 18-20, 2026 (Round 1 Game 1s + some Game 2s)
+// Points = cumulative playoff totals so far
+const PLAYER_DB = {
+  // pid: { fn, ln, team_abbr, team_full, position, bdl_id }
+  // We'll store by a local key, then map to balldontlie IDs when searching
+};
+
+// Pre-loaded roster data: local_id → player info + known pts
+const KNOWN_PLAYERS = {
+  // MICAH
+  'shai':    {fn:'Shai',     ln:'Gilgeous-Alexander', abbr:'OKC', full:'Oklahoma City Thunder',     pos:'G', bdl_id:1628983, pts:25,  games:1, status:'final'},
+  'pritchard':{fn:'Payton',  ln:'Pritchard',          abbr:'BOS', full:'Boston Celtics',            pos:'G', bdl_id:1629014, pts:12,  games:1, status:'final'},
+  'dwhite':  {fn:'Derrick',  ln:'White',              abbr:'BOS', full:'Boston Celtics',            pos:'G', bdl_id:1629060, pts:10,  games:1, status:'final'},
+  'kd':      {fn:'Kevin',    ln:'Durant',             abbr:'HOU', full:'Houston Rockets',           pos:'F', bdl_id:201142,  pts:0,   games:0, status:'dnp',  note:'Injured G1'},
+  'mobley':  {fn:'Evan',     ln:'Mobley',             abbr:'CLE', full:'Cleveland Cavaliers',       pos:'C', bdl_id:1630596, pts:42,  games:2, status:'final'},
+  'cjmccollum':{fn:'CJ',     ln:'McCollum',           abbr:'ATL', full:'Atlanta Hawks',             pos:'G', bdl_id:203468,  pts:58,  games:2, status:'final'},
+  'booker':  {fn:'Devin',    ln:'Booker',             abbr:'PHX', full:'Phoenix Suns',              pos:'G', bdl_id:1626164, pts:23,  games:1, status:'final'},
+  'braun':   {fn:'Christian',ln:'Braun',              abbr:'DEN', full:'Denver Nuggets',            pos:'G', bdl_id:1631162, pts:6,   games:1, status:'final'},
+
+  // ISAAC
+  'tatum':   {fn:'Jayson',   ln:'Tatum',              abbr:'BOS', full:'Boston Celtics',            pos:'F', bdl_id:1628369, pts:25,  games:1, status:'final'},
+  'chet':    {fn:'Chet',     ln:'Holmgren',           abbr:'OKC', full:'Oklahoma City Thunder',     pos:'C', bdl_id:1631096, pts:16,  games:1, status:'final'},
+  'brunson': {fn:'Jalen',    ln:'Brunson',            abbr:'NYK', full:'New York Knicks',           pos:'G', bdl_id:1628384, pts:57,  games:2, status:'final'},
+  'kat':     {fn:'Karl-Anthony',ln:'Towns',           abbr:'NYK', full:'New York Knicks',           pos:'C', bdl_id:1626157, pts:43,  games:2, status:'final'},
+  'duren':   {fn:'Jalen',    ln:'Duren',              abbr:'DET', full:'Detroit Pistons',           pos:'C', bdl_id:1631167, pts:8,   games:1, status:'final'},
+  'ajay':    {fn:'Ajay',     ln:'Mitchell',           abbr:'OKC', full:'Oklahoma City Thunder',     pos:'G', bdl_id:1641886, pts:0,   games:0, status:'upcoming', note:'Bench/DNP G1'},
+  'og':      {fn:'OG',       ln:'Anunoby',            abbr:'NYK', full:'New York Knicks',           pos:'F', bdl_id:1628384, pts:18,  games:1, status:'final'},
+  'mikal':   {fn:'Mikal',    ln:'Bridges',            abbr:'NYK', full:'New York Knicks',           pos:'F', bdl_id:1628969, pts:18,  games:2, status:'final'},
+
+  // KLORTEDELMAN
+  'jbrown':  {fn:'Jaylen',   ln:'Brown',              abbr:'BOS', full:'Boston Celtics',            pos:'G', bdl_id:1627759, pts:26,  games:1, status:'final'},
+  'murray':  {fn:'Jamal',    ln:'Murray',             abbr:'DEN', full:'Denver Nuggets',            pos:'G', bdl_id:1627750, pts:60,  games:2, status:'final'},
+  'cade':    {fn:'Cade',     ln:'Cunningham',         abbr:'DET', full:'Detroit Pistons',           pos:'G', bdl_id:1630595, pts:34,  games:1, status:'final'},
+  'gordon':  {fn:'Aaron',    ln:'Gordon',             abbr:'DEN', full:'Denver Nuggets',            pos:'F', bdl_id:203932,  pts:24,  games:2, status:'final'},
+  'sengun':  {fn:'Alperen',  ln:'Sengun',             abbr:'HOU', full:'Houston Rockets',           pos:'C', bdl_id:1631094, pts:19,  games:1, status:'final'},
+  'embiid':  {fn:'Joel',     ln:'Embiid',             abbr:'PHI', full:'Philadelphia 76ers',        pos:'C', bdl_id:203954,  pts:0,   games:0, status:'dnp', note:'Out - appendicitis'},
+  'keldon':  {fn:'Keldon',   ln:'Johnson',            abbr:'SAS', full:'San Antonio Spurs',         pos:'F', bdl_id:1629010, pts:6,   games:1, status:'final'},
+  'amen':    {fn:'Amen',     ln:'Thompson',           abbr:'HOU', full:'Houston Rockets',           pos:'F', bdl_id:1631197, pts:15,  games:1, status:'final'},
+
+  // ETHAN
+  'wemby':   {fn:'Victor',   ln:'Wembanyama',         abbr:'SAS', full:'San Antonio Spurs',         pos:'C', bdl_id:1641705, pts:35,  games:1, status:'final'},
+  'mitchell':{fn:'Donovan',  ln:'Mitchell',           abbr:'CLE', full:'Cleveland Cavaliers',       pos:'G', bdl_id:1628378, pts:62,  games:2, status:'final'},
+  'harden':  {fn:'James',    ln:'Harden',             abbr:'CLE', full:'Cleveland Cavaliers',       pos:'G', bdl_id:201935,  pts:50,  games:2, status:'final'},
+  'jalenjohnson':{fn:'Jalen',ln:'Johnson',            abbr:'ATL', full:'Atlanta Hawks',             pos:'F', bdl_id:1630552, pts:30,  games:2, status:'final'},
+  'lebron':  {fn:'LeBron',   ln:'James',              abbr:'LAL', full:'Los Angeles Lakers',        pos:'F', bdl_id:2544,    pts:19,  games:1, status:'final'},
+  'naw':     {fn:'Nickeil',  ln:'Alexander-Walker',   abbr:'MIN', full:'Minnesota Timberwolves',    pos:'G', bdl_id:1629638, pts:0,   games:1, status:'final', note:'Low mins G1'},
+  'vassell': {fn:'Devin',    ln:'Vassell',            abbr:'SAS', full:'San Antonio Spurs',         pos:'G', bdl_id:1630170, pts:15,  games:1, status:'final'},
+  'harper':  {fn:'Dylan',    ln:'Harper',             abbr:'SAS', full:'San Antonio Spurs',         pos:'G', bdl_id:1642069, pts:0,   games:0, status:'upcoming', note:'Rookie, limited mins'},
+
+  // ZACK
+  'jokic':   {fn:'Nikola',   ln:'Jokic',              abbr:'DEN', full:'Denver Nuggets',            pos:'C', bdl_id:203999,  pts:49,  games:2, status:'final'},
+  'jwilliams':{fn:'Jalen',   ln:'Williams',           abbr:'OKC', full:'Oklahoma City Thunder',     pos:'F', bdl_id:1631094, pts:22,  games:1, status:'final'},
+  'fox':     {fn:"De'Aaron", ln:'Fox',                abbr:'SAS', full:'San Antonio Spurs',         pos:'G', bdl_id:1628368, pts:17,  games:1, status:'final'},
+  'castle':  {fn:'Stephon',  ln:'Castle',             abbr:'SAS', full:'San Antonio Spurs',         pos:'G', bdl_id:1641972, pts:17,  games:1, status:'final'},
+  'maxey':   {fn:'Tyrese',   ln:'Maxey',              abbr:'PHI', full:'Philadelphia 76ers',        pos:'G', bdl_id:1630178, pts:21,  games:1, status:'final'},
+  'ijoe':    {fn:'Isaiah',   ln:'Joe',                abbr:'OKC', full:'Oklahoma City Thunder',     pos:'G', bdl_id:1630245, pts:0,   games:1, status:'final', note:'Bench role'},
+  'queta':   {fn:'Neemias',  ln:'Queta',              abbr:'BOS', full:'Boston Celtics',            pos:'C', bdl_id:1630579, pts:2,   games:1, status:'final'},
+  'scheier': {fn:'Baylor',   ln:'Scheierman',         abbr:'BOS', full:'Boston Celtics',            pos:'G', bdl_id:1642041, pts:5,   games:1, status:'final'},
+};
+
+// ─── LEAGUE CONFIGURATION ────────────────────────────────────
+const LEAGUE_CONFIG = {
+  name: 'Playoff Fantasy',
+  teams: [
+    {
+      name: 'Micah',
+      owner: 'Micah',
+      players: ['shai','pritchard','dwhite','kd','mobley','cjmccollum','booker','braun']
+    },
+    {
+      name: 'Isaac',
+      owner: 'Isaac',
+      players: ['tatum','chet','brunson','kat','duren','ajay','og','mikal']
+    },
+    {
+      name: 'Klortedelman',
+      owner: 'Klortedelman',
+      players: ['jbrown','murray','cade','gordon','sengun','embiid','keldon','amen']
+    },
+    {
+      name: 'Ethan',
+      owner: 'Ethan',
+      players: ['wemby','mitchell','harden','jalenjohnson','lebron','naw','vassell','harper']
+    },
+    {
+      name: 'Zack',
+      owner: 'Zack',
+      players: ['jokic','jwilliams','fox','castle','maxey','ijoe','queta','scheier']
+    }
+  ]
+};
+
+// ─── STATE ────────────────────────────────────────────────────
+const S = {
+  apiKey:'', leagueName:'Playoff Fantasy',
+  teams:[], activeTab:0, editIdx:null,
+  pCache:{},  // key→player obj
+  sCache:{},  // key→{pts,status,games,note}
+  lastUp:null
+};
+
+const BASE = 'https://api.balldontlie.io/nba/v1';
+const SEASON = 2024;
+let rTimer=null, cdInt=null, nextAt=null;
+
+// ─── PERSIST ──────────────────────────────────────────────────
+function save(){
+  try{localStorage.setItem('pfx3',JSON.stringify({
+    apiKey:S.apiKey,leagueName:S.leagueName,teams:S.teams,
+    pCache:S.pCache,sCache:S.sCache,lastUp:S.lastUp
+  }));}catch(e){}
+}
+function loadState(){
+  try{
+    const d=JSON.parse(localStorage.getItem('pfx3')||'{}');
+    if(d.apiKey){S.apiKey=d.apiKey;S.leagueName=d.leagueName||'Playoff Fantasy';S.teams=d.teams||[];S.pCache=d.pCache||{};S.sCache=d.sCache||{};S.lastUp=d.lastUp||null;}
+  }catch(e){}
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────
+loadState();
+
+// Initialize with known data if no saved state
+function initKnownData(){
+  // Load player cache from known data
+  for(const [k,p] of Object.entries(KNOWN_PLAYERS)){
+    if(!S.pCache[k]) S.pCache[k] = {first_name:p.fn, last_name:p.ln, team:{abbreviation:p.abbr, full_name:p.full}, position:p.pos, bdl_id:p.bdl_id, local_key:k};
+    if(!S.sCache[k]) S.sCache[k] = {pts:p.pts, status:p.status, games:p.games, note:p.note||''};
+  }
+}
+
+if(S.apiKey && S.teams.length>0){
+  initKnownData();
+  showMain();
+} else if(S.apiKey){
+  // Has key but no teams - load the default league config
+  S.teams = LEAGUE_CONFIG.teams.map(t=>({...t,players:[...t.players]}));
+  S.leagueName = LEAGUE_CONFIG.name;
+  initKnownData();
+  save();
+  showMain();
+} else {
+  document.getElementById('setup-screen').style.display='flex';
+}
+
+// ─── SETUP ────────────────────────────────────────────────────
+async function initLeague(){
+  const key=(document.getElementById('api-key-input').value||'').trim();
+  const name=(document.getElementById('league-name-input').value||'').trim()||'Playoff Fantasy';
+  msg('setup-error',''); msg('setup-ok','');
+  if(!key){msg('setup-error','Please paste your API key.'); return;}
+  const btn=document.getElementById('setup-btn');
+  btn.textContent='Connecting...'; btn.disabled=true;
+  try{
+    const r=await fetch(`${BASE}/players?per_page=1`,{headers:{'Authorization':key}});
+    if(r.status===401){msg('setup-error','❌ Invalid API key (401). Copy the key exactly from your balldontlie.io dashboard.');btn.textContent='Connect & Load My League →';btn.disabled=false;return;}
+    if(r.status===429){msg('setup-error','⏱ Rate limited. Wait 30 seconds and try again.');btn.textContent='Connect & Load My League →';btn.disabled=false;return;}
+    if(!r.ok){msg('setup-error',`❌ API error ${r.status}. Check balldontlie.io and try again.`);btn.textContent='Connect & Load My League →';btn.disabled=false;return;}
+    msg('setup-ok','✅ Connected! Loading your pre-built league...');
+    S.apiKey=key; S.leagueName=name;
+    // Load default teams
+    S.teams=LEAGUE_CONFIG.teams.map(t=>({...t,players:[...t.players]}));
+    initKnownData();
+    save();
+    setTimeout(showMain,600);
+  }catch(e){
+    msg('setup-error',`❌ Network error: ${e.message}`);
+    btn.textContent='Connect & Load My League →';btn.disabled=false;
+  }
+}
+
+function msg(id,text){const el=document.getElementById(id);if(!el)return;el.textContent=text;el.style.display=text?'block':'none';}
+
+function showMain(){
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('main-screen').style.display='block';
+  document.getElementById('hlogo').textContent=S.leagueName.toUpperCase();
+  document.title=S.leagueName;
+  if(S.lastUp) document.getElementById('last-updated').textContent=new Date(S.lastUp).toLocaleTimeString();
+  render();
+  schedAR();
+}
+
+// ─── RENDER ───────────────────────────────────────────────────
+function render(){
+  renderLB(); renderTabs(); renderPanels();
+  const hasLive=Object.values(S.sCache).some(s=>s?.status==='live');
+  const badge=document.getElementById('live-badge');
+  badge.style.display=hasLive?'flex':'none';
+}
+
+function total(t){return (t.players||[]).reduce((s,k)=>s+(S.sCache[k]?.pts||0),0);}
+
+function renderLB(){
+  const sorted=[...S.teams].map((t,i)=>({...t,i,tot:total(t)})).sort((a,b)=>b.tot-a.tot);
+  const lb=document.getElementById('lb');
+  if(!S.teams.length){lb.innerHTML=`<div class="empty-state" style="grid-column:1/-1"><div class="big">🏀</div>No teams yet.</div>`;return;}
+  lb.innerHTML=sorted.map((t,r)=>`
+    <div class="team-card rank-${r+1}" onclick="switchTab(${t.i})">
+      <div class="rank-badge">#${r+1}</div>
+      <div class="team-owner">${x(t.owner||'Owner')}</div>
+      <div class="team-name">${x(t.name)}</div>
+      <div class="team-pts">${t.tot.toFixed(0)}</div>
+      <div class="team-pts-label">PLAYOFF PTS</div>
+      <div class="team-player-count">${(t.players||[]).length} players</div>
+    </div>`).join('');
+}
+
+function renderTabs(){
+  document.getElementById('tabs').innerHTML=S.teams.map((t,i)=>`
+    <button class="tab ${i===S.activeTab?'active':''}" onclick="switchTab(${i})">${x(t.name)}</button>`).join('');
+}
+
+function renderPanels(){
+  document.getElementById('panels').innerHTML=S.teams.map((t,i)=>{
+    const ps=t.players||[], tot=total(t);
+    return `<div class="team-detail ${i===S.activeTab?'active':''}" id="panel-${i}">
+      <div class="team-header">
+        <div class="team-header-left"><h2>${x(t.name)}</h2><p>Owner: ${x(t.owner||'—')}</p></div>
+        <div style="display:flex;align-items:center;gap:1rem">
+          <div style="text-align:right">
+            <div class="team-total">${tot.toFixed(0)}</div>
+            <div style="font-size:.72rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Total Pts</div>
+          </div>
+          <button class="btn" onclick="openEditTeam(${i})">✏ Edit</button>
+        </div>
+      </div>
+      <div class="note-banner">📊 <strong>Point totals auto-seeded</strong> through April 20 (Games 1–2). Hit <strong>↻ Refresh Stats</strong> to pull live updates via the balldontlie API.</div>
+      ${!ps.length
+        ?`<div class="empty-state"><div class="big">👤</div>No players yet.</div>`
+        :`<table class="roster-table"><thead><tr><th>Player</th><th>Team</th><th>Status</th><th>Gms</th><th>PTS</th><th></th></tr></thead>
+          <tbody>${ps.map(k=>pRow(k,i)).join('')}</tbody></table>`}
+      <div class="add-player-row">
+        <div class="search-wrap"><input type="text" id="si-${i}" placeholder="Search to add a player..." oninput="onSearch(${i})" onblur="closeDDSoon(${i})" autocomplete="off"/>
+        <div class="search-dd" id="dd-${i}"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function pRow(k,ti){
+  const p=S.pCache[k];
+  const s=S.sCache[k]||{pts:0,status:'upcoming',games:0,note:''};
+  const name=p?`${p.first_name} ${p.last_name}`:`Player ${k}`;
+  const team=p?.team?.abbreviation||'—';
+  const pts=s.pts??0;
+  const st=s.status||'upcoming';
+  const bc={live:'s-live',final:'s-final',upcoming:'s-upcoming',loading:'s-loading',dnp:'s-dnp'}[st]||'s-upcoming';
+  const bl={live:'🔴 LIVE',final:'FINAL',upcoming:'UPCOMING',loading:'...',dnp:'DNP'}[st]||'UPCOMING';
+  const noteHtml=s.note?`<br><span style="font-size:.7rem;color:var(--muted)">${x(s.note)}</span>`:'';
+  const gms=s.games??'—';
+  return `<tr>
+    <td class="player-name-cell">${x(name)}${noteHtml}</td>
+    <td><span class="player-team-tag">${team}</span></td>
+    <td><span class="sbadge ${bc}">${bl}</span></td>
+    <td style="font-family:'DM Mono',monospace;font-size:.85rem;color:var(--muted)">${gms}</td>
+    <td class="pts-cell">${pts}</td>
+    <td><button class="del-btn" onclick="removePlayer(${ti},'${k}')" title="Remove">×</button></td>
+  </tr>`;
+}
+
+function switchTab(i){S.activeTab=i;render();}
+
+// ─── SEARCH ───────────────────────────────────────────────────
+let sTimer=null;
+function onSearch(ti){
+  clearTimeout(sTimer);
+  const q=(document.getElementById(`si-${ti}`)?.value||'').trim();
+  const dd=document.getElementById(`dd-${ti}`);
+  if(!dd) return;
+  if(q.length<2){dd.classList.remove('open');return;}
+  dd.innerHTML=`<div class="sitem" style="color:var(--muted)">Searching...</div>`;
+  dd.classList.add('open');
+  sTimer=setTimeout(()=>doSearch(ti,q),350);
+}
+async function doSearch(ti,q){
+  const dd=document.getElementById(`dd-${ti}`);
+  if(!dd) return;
+  try{
+    const r=await fetch(`${BASE}/players?search=${encodeURIComponent(q)}&per_page=10`,{headers:{'Authorization':S.apiKey}});
+    if(!r.ok){dd.innerHTML=`<div class="sitem" style="color:#f87171">API error ${r.status}</div>`;return;}
+    const d=await r.json();
+    const ps=d.data||[];
+    dd.innerHTML=!ps.length
+      ?`<div class="sitem" style="color:var(--muted)">No results for "${x(q)}"</div>`
+      :ps.map(p=>{
+          const safe=JSON.stringify(p).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+          return `<div class="sitem" onmousedown="addPlayerFromSearch(${ti},'${p.id}','${safe}')">
+            <div class="sitem-name">${x(p.first_name)} ${x(p.last_name)}</div>
+            <div class="sitem-team">${p.team?.full_name||'Free Agent'} · ${p.position||'?'}</div>
+          </div>`;
+        }).join('');
+    dd.classList.add('open');
+  }catch(e){
+    dd.innerHTML=`<div class="sitem" style="color:#f87171">Search error: ${x(e.message)}</div>`;
+  }
+}
+function closeDDSoon(ti){setTimeout(()=>{const d=document.getElementById(`dd-${ti}`);if(d)d.classList.remove('open');},250);}
+
+async function addPlayerFromSearch(ti,pid,pJson){
+  const pidS=`bdl_${pid}`, team=S.teams[ti];
+  if(!team) return;
+  team.players=team.players||[];
+  if(team.players.includes(pidS)){alert('Player already on this roster.');return;}
+  team.players.push(pidS);
+  try{S.pCache[pidS]=JSON.parse(pJson);}catch(e){}
+  S.sCache[pidS]={pts:0,status:'loading',games:0,note:''};
+  save(); render();
+  const inp=document.getElementById(`si-${ti}`); if(inp) inp.value='';
+  await fetchStats(pidS);
+  save(); render();
+}
+
+function removePlayer(ti,k){
+  const t=S.teams[ti]; if(!t) return;
+  t.players=(t.players||[]).filter(p=>p!==k);
+  save(); render();
+}
+
+// ─── STATS REFRESH (balldontlie API) ─────────────────────────
+async function fetchStats(k){
+  // For pre-seeded players, use their bdl_id; for search-added ones use the key directly
+  let pid;
+  if(k.startsWith('bdl_')) pid=k.replace('bdl_','');
+  else pid=S.pCache[k]?.bdl_id||S.pCache[k]?.id;
+
+  if(!pid){return;} // can't look up without an ID
+
+  try{
+    // Fetch postseason stats for this player (2026 = season 2025 in balldontlie)
+    const [regR,postR]=await Promise.allSettled([
+      fetch(`${BASE}/stats?seasons[]=${SEASON}&player_ids[]=${pid}&per_page=10`,{headers:{'Authorization':S.apiKey}}),
+      fetch(`${BASE}/stats?seasons[]=${SEASON}&player_ids[]=${pid}&per_page=10&postseason=true`,{headers:{'Authorization':S.apiKey}})
+    ]);
+
+    // We want to sum ALL playoff game points
+    let totalPts=0, gamesPlayed=0, latestStatus='upcoming';
+
+    for(const res of [postR]){  // prioritize postseason
+      if(res.status!=='fulfilled'||!res.value.ok) continue;
+      const d=await res.value.json();
+      if(!d.data?.length) continue;
+      for(const stat of d.data){
+        const rawSt=(stat.game?.status||'').toLowerCase().trim();
+        const pts=stat.pts??0;
+        let isFinal=rawSt==='final'||rawSt.startsWith('final')||rawSt==='ft';
+        let isLive=/^\d+/.test(rawSt)||rawSt.includes('qtr')||rawSt.includes('in progress');
+        if(isFinal||isLive){
+          totalPts+=pts;
+          gamesPlayed++;
+          if(isLive) latestStatus='live';
+          else if(isFinal) latestStatus='final';
+        }
+        // Update player cache
+        if(stat.player&&!S.pCache[k]?.first_name){
+          const po={...stat.player}; if(stat.team) po.team=stat.team;
+          S.pCache[k]={...S.pCache[k],...po};
+        }
+      }
+    }
+
+    // Only update if we got real data back (>0 games)
+    if(gamesPlayed>0){
+      S.sCache[k]={pts:totalPts,status:latestStatus,games:gamesPlayed,note:S.sCache[k]?.note||''};
+    }
+  }catch(e){}
+}
+
+async function refreshAllStats(){
+  const btn=document.getElementById('refresh-btn');
+  btn.innerHTML='<span class="spinning">↻</span> Refreshing...'; btn.disabled=true;
+
+  // Get all unique player keys
+  const keys=[...new Set(S.teams.flatMap(t=>t.players||[]))];
+
+  for(let i=0;i<keys.length;i+=3){
+    await Promise.all(keys.slice(i,i+3).map(fetchStats));
+    if(i+3<keys.length) await new Promise(r=>setTimeout(r,300));
+  }
+
+  S.lastUp=new Date().toISOString(); save(); render();
+  document.getElementById('last-updated').textContent=new Date().toLocaleTimeString();
+  btn.innerHTML='↻ Refresh Stats'; btn.disabled=false;
+  schedAR();
+}
+
+function schedAR(){
+  clearTimeout(rTimer); clearInterval(cdInt);
+  nextAt=Date.now()+60000;
+  cdInt=setInterval(()=>{const s=Math.max(0,Math.ceil((nextAt-Date.now())/1000));const el=document.getElementById('cd');if(el)el.textContent=`Auto-refresh in ${s}s`;},1000);
+  rTimer=setTimeout(refreshAllStats,60000);
+}
+
+// ─── TEAM CRUD ────────────────────────────────────────────────
+function openAddTeam(){if(S.teams.length>=8){alert('Max 8 teams.');return;}document.getElementById('nt-name').value='';document.getElementById('nt-owner').value='';openModal('add-team-modal');}
+function addTeam(){const n=(document.getElementById('nt-name').value||'').trim();if(!n){alert('Enter a team name.');return;}S.teams.push({name:n,owner:(document.getElementById('nt-owner').value||'').trim(),players:[]});S.activeTab=S.teams.length-1;save();closeModal('add-team-modal');render();}
+function openEditTeam(i){S.editIdx=i;document.getElementById('et-name').value=S.teams[i].name;document.getElementById('et-owner').value=S.teams[i].owner||'';openModal('edit-team-modal');}
+function saveTeam(){const i=S.editIdx;if(i===null)return;const n=(document.getElementById('et-name').value||'').trim();if(n)S.teams[i].name=n;S.teams[i].owner=(document.getElementById('et-owner').value||'').trim();save();closeModal('edit-team-modal');render();}
+function deleteTeam(){const i=S.editIdx;if(i===null)return;if(!confirm(`Delete "${S.teams[i].name}"?`))return;S.teams.splice(i,1);S.activeTab=Math.max(0,Math.min(S.activeTab,S.teams.length-1));save();closeModal('edit-team-modal');render();}
+function saveLeague(){const n=(document.getElementById('el-name').value||'').trim(),k=(document.getElementById('el-key').value||'').trim();if(n){S.leagueName=n;document.getElementById('hlogo').textContent=n.toUpperCase();document.title=n;}if(k)S.apiKey=k;save();closeModal('edit-league-modal');render();}
+
+// ─── MODALS ───────────────────────────────────────────────────
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');}));
+
+// ─── UTIL ─────────────────────────────────────────────────────
+function x(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+</body>
+</html>
